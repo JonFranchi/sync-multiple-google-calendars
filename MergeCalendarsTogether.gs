@@ -11,6 +11,8 @@ const SYNC_DAYS_IN_FUTURE = 30;
 // Set this to "false" when your happy with the debug output!
 const DEBUG_ONLY = true;
 
+const VERBOSE_LOGGING = false;
+
 // Configure event summaries to ignore (don't sync). These values are used with
 // RegExp.test() so when just a string literal, they act like a case-sensitive
 // "contains" check. If you want more control, use the line start (^) and/or
@@ -36,6 +38,9 @@ const OBFUSCATE_LIST_REGEXES = [
 
 // should we copy event descriptions?
 const USER_INCLUDE_DESC = false;
+
+// should we copy the original attendance status from the primary calendar?
+const USER_COPY_SELF_ATTENDANCE_STATUS = false;
 
 // ----------------------------------------------------------------------------
 // DO NOT TOUCH FROM HERE ON
@@ -93,6 +98,15 @@ function INCLUDE_DESC() {
     : USER_INCLUDE_DESC
 }
 
+function COPY_SELF_ATTENDANCE_STATUS() {
+  if (typeof module === 'undefined') {
+    return USER_COPY_SELF_ATTENDANCE_STATUS
+  }
+  return typeof module.exports.TEST_COPY_SELF_ATTENDANCE_STATUS === 'boolean'
+    ? module.exports.TEST_COPY_SELF_ATTENDANCE_STATUS
+    : USER_COPY_SELF_ATTENDANCE_STATUS
+}
+
 function IsOnIgnoreList(event) {
   for (const currRe of IGNORE_LIST_REGEXES) {
     const isMatch = new RegExp(currRe).test(event.summary)
@@ -147,7 +161,8 @@ function ExistsInDestination(destination, originEvent) {
     ?.some(mergedEvent => {
       return mergedEvent.summary === GetMergeSummary(originEvent) &&
         mergedEvent.location === originEvent.location &&
-        !isDescWrong(mergedEvent) // sorry for the double negative :'(
+        !isDescWrong(mergedEvent) && // sorry for the double negative :'(
+        AttendeeSelfStatusMatches(mergedEvent, originEvent)
     })
 }
 
@@ -165,6 +180,23 @@ function isDescWrong(event) {
   }
   const shouldNotHaveDescButDoes = event.description !== DESC_NOT_COPIED_MSG
   return shouldNotHaveDescButDoes
+}
+
+function AttendeeSelfStatusMatches(originEvent, mergedEvent) {
+  if (!COPY_SELF_ATTENDANCE_STATUS()) return true;
+  const originStatus = originEvent.attendees?.find(a => a.self === true)?.responseStatus
+  const mergedStatus = mergedEvent.attendees?.find(a => a.self === true)?.responseStatus
+  const matches = originStatus === mergedStatus
+  if(!matches && VERBOSE_LOGGING) console.log(`DIFF FOUND IN ATTENDEE STATUS: originStatus: ${originStatus} ; mergedStatus: ${mergedStatus}`)
+  return matches;
+}
+
+function GetAttendeeSelf(originEvent, destination) {
+  if (!COPY_SELF_ATTENDANCE_STATUS()) return [];
+  const selfAttendee = originEvent.attendees?.find(a => a.self === true);
+  if (typeof selfAttendee === 'undefined') return []
+  selfAttendee.email = destination.calendarId;
+  return [selfAttendee];
 }
 
 function SortEvents(calendarId, items) {
@@ -282,6 +314,7 @@ function MergeCalendars (calendars) {
               description: GetDesc(originEvent),
               start: originEvent.start,
               end: originEvent.end,
+              attendees: GetAttendeeSelf(originEvent, destination),
             }
             calendarRequests.push({
               method: 'POST',
@@ -353,5 +386,8 @@ if (typeof module !== 'undefined') {
     LOC_NOT_COPIED_MSG,
     SYNC_DAYS_IN_PAST,
     SYNC_DAYS_IN_FUTURE,
+    COPY_SELF_ATTENDANCE_STATUS,
+    AttendeeSelfStatusMatches,
+    GetAttendeeSelf,
   }
 }
