@@ -309,7 +309,7 @@ it('should return false when origin and merged have mismatched Attendee status',
       self: true,
       responseStatus: 'accepted'
     }]}
-  const mergedEvent = { attendees:
+  const mergedEvent = { attendees:q
     [{
       email: 'user.email@turducken.com',
       self: true,
@@ -322,6 +322,7 @@ it('should return false when origin and merged have mismatched Attendee status',
 })
 
 it('should return self attendee with updated email', () => {
+  objectUnderTest.TEST_COPY_SELF_ATTENDANCE_STATUS = true;
   const originEvent = { attendees:
     [{
       email: 'user.email@cheeseburger.com',
