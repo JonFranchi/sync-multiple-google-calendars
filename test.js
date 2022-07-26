@@ -302,7 +302,6 @@ it('should return [] when COPY_SELF_ATTENDANCE_STATUS is disabled', () => {
 
 it('should return false when origin and merged have mismatched Attendee status', () => {
   objectUnderTest.TEST_COPY_SELF_ATTENDANCE_STATUS = true;
-  // attendees definitely don't match; would find diff if enabled
   const originEvent =  { attendees:
     [{
       email: 'user.email@cheeseburger.com',
