@@ -52,6 +52,9 @@ const MERGE_PREFIX = '🔄 ';
 const DESC_NOT_COPIED_MSG = '(description not copied)'
 const SUMMARY_NOT_COPIED_MSG = '(summary not copied)'
 const LOC_NOT_COPIED_MSG = '(location not copied)'
+
+const log = createLogger();
+
 // listed as first function so it's the default to run in the web UI
 function MergeCalendarsTogether() {
   const dates = GetStartEndDates();
@@ -89,6 +92,13 @@ function GetStartEndDates () {
   return [startDate, endDate];
 }
 
+function createLogger (){
+  return {
+    info: (...msg)=> { console.log('INFO: ', ...msg) },
+    debug: (...msg)=> { if (VERBOSE_LOGGING) console.log('DEBUG:', ...msg)}
+  }
+}
+
 function INCLUDE_DESC() {
   if (typeof module === 'undefined') {
     return USER_INCLUDE_DESC
@@ -111,7 +121,7 @@ function IsOnIgnoreList(event) {
   for (const currRe of IGNORE_LIST_REGEXES) {
     const isMatch = new RegExp(currRe).test(event.summary)
     if (isMatch) {
-      console.log(`Ignoring event "${event.summary}" that matches regex "${currRe}"`)
+      log.info(`Ignoring event "${event.summary}" that matches regex "${currRe}"`)
       return true
     }
   }
@@ -122,7 +132,7 @@ function IsOnObfuscateList(event) {
   for (const currRe of OBFUSCATE_LIST_REGEXES) {
     const isMatch = new RegExp(currRe).test(event.summary)
     if (isMatch) {
-      console.log(`Obfuscating event "${event.summary}" that matches regex "${currRe}"`)
+      log.info(`Obfuscating event "${event.summary}" that matches regex "${currRe}"`)
       return true
     }
   }
@@ -187,7 +197,7 @@ function AttendeeSelfStatusMatches(originEvent, mergedEvent) {
   const originStatus = originEvent.attendees?.find(a => a.self === true)?.responseStatus
   const mergedStatus = mergedEvent.attendees?.find(a => a.self === true)?.responseStatus
   const matches = originStatus === mergedStatus
-  if(!matches && VERBOSE_LOGGING) console.log(`DIFF FOUND IN ATTENDEE STATUS: originStatus: ${originStatus} ; mergedStatus: ${mergedStatus}`)
+  if(!matches) log.debug(`DIFF FOUND IN ATTENDEE STATUS: originStatus: ${originStatus} ; mergedStatus: ${mergedStatus}`)
   return matches;
 }
 
@@ -206,7 +216,7 @@ function SortEvents(calendarId, items) {
     items.forEach((event) => {
       // Don't copy "free" events.
       if (event.transparency === 'transparent') {
-        console.log(`Ignoring transparent event: ${event.summary}`)
+        log.info(`Ignoring transparent event: ${event.summary}`)
         return;
       }
       const realStart = GetRealStart(event);
@@ -215,7 +225,7 @@ function SortEvents(calendarId, items) {
         const eventDateTime = merged[realStart] || [];
         if (eventDateTime.some(e => e.summary === event.summary)) {
           event.isDuplicate = true;
-          console.log(`Marking "${event.summary}" as duplicate`)
+          log.info(`Marking "${event.summary}" as duplicate`)
         }
         eventDateTime.push(event)
         merged[realStart] = eventDateTime;
@@ -256,7 +266,7 @@ function RetrieveCalendars(startTime, endTime) {
     if (!calendarCheck) {
       const msg = `Calendar not found: ${calendarId}. Be sure you've shared the`
         + `calendar to this account AND accepted the share!`
-      console.log(msg)
+      log.info(msg)
       return;
     }
 
@@ -278,7 +288,7 @@ function RetrieveCalendars(startTime, endTime) {
       items.push(...result.items)
       nextPage = result.nextPageToken;
     } while(nextPage);
-    console.log(`Found ${items.length} items for ${calendarId}`)
+    log.info(`Found ${items.length} items for ${calendarId}`)
     const isNoEventsFound = !items.length
     if (isNoEventsFound) {
       return;
@@ -316,6 +326,7 @@ function MergeCalendars (calendars) {
               end: originEvent.end,
               attendees: GetAttendeeSelf(originEvent, destination),
             }
+            log.debug('Pre Event Update Body: ', body)
             calendarRequests.push({
               method: 'POST',
               endpoint: `${ENDPOINT_BASE}/${destination.calendarId}/events`,
@@ -348,7 +359,7 @@ function MergeCalendars (calendars) {
   Object.keys(payloadSets).forEach(calendarId => {
     const calendarRequests = payloadSets[calendarId];
     if (!(calendarRequests || []).length) {
-      console.log(`No events to modify for ${calendarId}.`);
+      log.info(`No events to modify for ${calendarId}.`);
       return
     }
     if (!DEBUG_ONLY) {
@@ -357,15 +368,17 @@ function MergeCalendars (calendars) {
         requests: calendarRequests,
       });
       if (!result.getResponseCode || result.getResponseCode() !== 200) {
-        console.log(result)
+        log.info(result)
+      } else {
+        log.debug('BatchRequest result: ', result.toString(), '; ', result.getResponseCode() )
       }
-      console.log(`${calendarRequests.length} events modified for ${calendarId}:`);
+      log.info(`${calendarRequests.length} events modified for ${calendarId}:`);
     } else {
-      console.log(`DEBUG: ${calendarRequests.length} events would have been modified for ${calendarId}:`);
+      log.debug(`${calendarRequests.length} events would have been modified for ${calendarId}:`);
     }
     const loggable = calendarRequests
       .map(({method, endpoint, summary}) => ({method, endpoint, summary}))
-    console.log(`Requests for ${calendarId}`, JSON.stringify(loggable, null, 2));
+    log.info(`Requests for ${calendarId}`, JSON.stringify(loggable, null, 2));
   });
 }
 
