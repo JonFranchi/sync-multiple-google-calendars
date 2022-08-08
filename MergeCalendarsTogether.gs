@@ -172,7 +172,7 @@ function ExistsInDestination(destination, originEvent) {
       return mergedEvent.summary === GetMergeSummary(originEvent) &&
         mergedEvent.location === originEvent.location &&
         !isDescWrong(mergedEvent) && // sorry for the double negative :'(
-        AttendeeSelfStatusMatches(mergedEvent, originEvent)
+        AttendeeSelfStatusMatches(originEvent, mergedEvent)
     })
 }
 
@@ -326,13 +326,13 @@ function MergeCalendars (calendars) {
               end: originEvent.end,
               attendees: GetAttendeeSelf(originEvent, destination),
             }
-            log.debug('Pre Event Update Body: ', body)
-            calendarRequests.push({
+            log.debug(`Pre-event update body for destination:  ${destination.calendarId} :: ${body}`)
+            calendarRequests.push(JSON.parse(JSON.stringify({
               method: 'POST',
               endpoint: `${ENDPOINT_BASE}/${destination.calendarId}/events`,
               summary: body.summary, // Only used in debugging statements
               requestBody: body,
-            });
+            })));
           }
           payloadSets[destination.calendarId] = calendarRequests;
         });
@@ -370,9 +370,9 @@ function MergeCalendars (calendars) {
       if (!result.getResponseCode || result.getResponseCode() !== 200) {
         log.info(result)
       } else {
-        log.debug('BatchRequest result: ', result.toString(), '; ', result.getResponseCode() )
+        log.debug('RESULT: ', result.toString(), '; ', result.getResponseCode() )
+        log.info(`${calendarRequests.length} events modified for ${calendarId}:`);
       }
-      log.info(`${calendarRequests.length} events modified for ${calendarId}:`);
     } else {
       log.debug(`${calendarRequests.length} events would have been modified for ${calendarId}:`);
     }
