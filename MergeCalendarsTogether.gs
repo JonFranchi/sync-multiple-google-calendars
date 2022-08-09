@@ -290,10 +290,6 @@ function RetrieveCalendars(startTime, endTime) {
       nextPage = result.nextPageToken;
     } while(nextPage);
     log.info(`Found ${items.length} items for ${calendarId}`)
-    const isNoEventsFound = !items.length
-    if (isNoEventsFound) {
-      return;
-    }
 
     calendars.push(SortEvents(calendarId, items));
   });
