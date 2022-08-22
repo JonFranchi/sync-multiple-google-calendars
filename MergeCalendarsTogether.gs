@@ -40,6 +40,7 @@ const OBFUSCATE_LIST_REGEXES = [
 const USER_INCLUDE_DESC = false;
 
 // should we copy the original attendance status from the primary calendar?
+// If true, we'll keep your declined/pending status instead of marking you busy.
 const USER_COPY_SELF_ATTENDANCE_STATUS = false;
 
 // ----------------------------------------------------------------------------
